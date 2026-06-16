@@ -1,0 +1,14 @@
+{
+  "name": "web-asr-server",
+  "version": "1.0.0",
+  "description": "服务端实时流式语音转文字 Web 应用",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "download-model": "node scripts/download-model.js"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "^1.13.3",
+    "ws": "^8.18.0"
+  }
+}

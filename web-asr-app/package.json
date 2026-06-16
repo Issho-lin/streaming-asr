@@ -1,0 +1,9 @@
+{
+  "name": "web-asr-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node check-runtime.js",
+    "start": "node check-runtime.js && node server.js"
+  }
+}

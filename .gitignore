@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Build
+dist/
+build/
+
+# Model files (too large for git)
+model/
+web-asr-server/models/
+
+# WASM binary artifacts
+web-asr-app/public/sherpa-onnx/*.wasm
+web-asr-app/public/sherpa-onnx/*.data
+
+# sherpa-onnx source and emsdk (submodules or local tools)
+sherpa-onnx/
+emsdk/
+
+# Logs
+*.log
+npm-debug.log*

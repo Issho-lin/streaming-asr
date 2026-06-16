@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>实时语音识别 - 服务端版</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>实时语音识别</h1>
+      <p class="subtitle">服务端流式语音转文字</p>
+    </header>
+
+    <div class="status-bar">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">正在连接服务器</span>
+    </div>
+
+    <div class="controls">
+      <button id="startButton" disabled>开始识别</button>
+      <button id="stopButton" disabled>停止识别</button>
+    </div>
+
+    <div class="result-container">
+      <div class="result-section">
+        <h3>实时结果</h3>
+        <div id="partialText" class="result-box partial">等待开始</div>
+      </div>
+
+      <div class="result-section">
+        <h3>完整结果</h3>
+        <div id="finalText" class="result-box final empty">暂无内容</div>
+      </div>
+    </div>
+
+    <footer>
+      <p>技术栈：Node.js + WebSocket + sherpa-onnx</p>
+    </footer>
+  </div>
+
+  <script src="/src/main.js"></script>
+</body>
+</html>

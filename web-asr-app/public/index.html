@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>流式实时语音转文字</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Browser ASR · sherpa-onnx WASM</p>
+          <h1>本地浏览器实时语音转文字</h1>
+          <p class="subtitle">
+            麦克风音频直接在浏览器内完成流式识别，不上传服务端。页面使用 sherpa-onnx WebAssembly，模型资源已经包含在本应用目录中。
+          </p>
+        </div>
+        <div class="status-card" aria-live="polite">
+          <span id="statusDot" class="dot"></span>
+          <span id="statusText">等待初始化</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="controls">
+          <button id="initButton" type="button">初始化模型</button>
+          <button id="startButton" type="button" disabled>开始识别</button>
+          <button id="stopButton" type="button" disabled>停止识别</button>
+        </div>
+
+        <div class="grid">
+          <label>
+            运行模式
+            <input value="浏览器本地识别，不上传音频" disabled />
+          </label>
+          <label>
+            WASM 运行时目录
+            <input id="wasmPath" value="./sherpa-onnx" />
+          </label>
+        </div>
+
+        <div class="transcript-wrap">
+          <div class="section-title">实时结果</div>
+          <div id="partialText" class="partial">等待语音输入</div>
+          <div class="section-title">已确认文本</div>
+          <div id="finalText" class="final empty">暂无内容</div>
+        </div>
+      </section>
+
+      <section class="notice">
+        <strong>运行提示：</strong>
+        需要通过 HTTP 服务打开页面，不能直接双击 HTML。点击“初始化模型”加载模型，状态变为“模型已就绪”后即可开始识别。
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
