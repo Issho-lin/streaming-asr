@@ -1,4 +1,5 @@
 const SAMPLE_RATE = 16000;
+const RECONNECT_DELAY_MS = 2000;
 
 const els = {
   startButton: document.querySelector('#startButton'),
@@ -21,6 +22,7 @@ let sourceNode = null;
 let processorNode = null;
 let appState = 'idle';
 let isUploading = false;
+let reconnectTimer = null;
 
 function setStatus(text, type = '') {
   els.statusText.textContent = text;
@@ -78,7 +80,37 @@ function setUploadBusyState(busy) {
   els.audioFileInput.disabled = busy;
 }
 
+function isRecording() {
+  return Boolean(processorNode);
+}
+
+function clearReconnectTimer() {
+  if (!reconnectTimer) return;
+
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+}
+
+function scheduleReconnect(message = `连接断开，${RECONNECT_DELAY_MS / 1000} 秒后重连`) {
+  if (reconnectTimer) return;
+
+  setStatus(message, 'error');
+  els.startButton.disabled = true;
+  els.stopButton.disabled = !isRecording();
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectWebSocket();
+  }, RECONNECT_DELAY_MS);
+}
+
 function connectWebSocket() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
+  clearReconnectTimer();
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws`;
 
@@ -94,8 +126,15 @@ function connectWebSocket() {
       const data = JSON.parse(event.data);
 
       if (data.type === 'ready') {
-        setAppState('ready');
-        els.startButton.disabled = false;
+        if (isRecording()) {
+          setAppState('recording');
+          els.startButton.disabled = true;
+          els.stopButton.disabled = false;
+        } else {
+          setAppState('ready');
+          els.startButton.disabled = false;
+          els.stopButton.disabled = true;
+        }
         return;
       }
 
@@ -114,15 +153,13 @@ function connectWebSocket() {
 
   ws.onerror = (err) => {
     console.error('WebSocket 错误:', err);
-    setAppState('error');
+    scheduleReconnect('连接失败，正在自动重连...');
   };
 
   ws.onclose = () => {
     console.log('WebSocket 连接关闭');
-    if (appState !== 'error') {
-      setAppState('idle');
-      setTimeout(connectWebSocket, 2000);
-    }
+    ws = null;
+    scheduleReconnect();
   };
 }
 
@@ -210,7 +247,7 @@ async function start() {
     processorNode = audioContext.createScriptProcessor(4096, 1, 1);
 
     processorNode.onaudioprocess = (event) => {
-      if (ws.readyState !== WebSocket.OPEN) return;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
       const input = event.inputBuffer.getChannelData(0);
       const samples = downsampleTo16k(input, audioContext.sampleRate);

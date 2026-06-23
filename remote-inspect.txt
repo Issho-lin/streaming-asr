@@ -1,0 +1,2 @@
+spawn ssh -o StrictHostKeyChecking=no root@43.136.112.180 bash -lc "whoami; pwd; uname -a; command -v node; node -v; command -v npm; npm -v; command -v pm2; pm2 list --no-color; systemctl list-units --type=service --no-pager | grep -i -E \"asr|node|pm2\"; find /root /www /opt -maxdepth 4 -type d -name web-asr-server 2>/dev/null"
+root@43.136.112.180's password: 
