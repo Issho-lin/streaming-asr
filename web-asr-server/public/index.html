@@ -23,6 +23,24 @@
       <button id="stopButton" disabled>停止识别</button>
     </div>
 
+    <section class="upload-section">
+      <div class="section-head">
+        <h2>文件上传转写</h2>
+        <p>支持 wav、mp3、m4a，上传后返回整段识别文本</p>
+      </div>
+
+      <div class="upload-controls">
+        <label class="file-picker" for="audioFileInput">
+          <span id="selectedFileName">选择音频文件</span>
+          <input id="audioFileInput" type="file" accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4">
+        </label>
+        <button id="uploadButton" type="button">上传并转写</button>
+      </div>
+
+      <div id="uploadHint" class="upload-hint">未选择文件</div>
+      <div id="uploadError" class="upload-error" hidden></div>
+    </section>
+
     <div class="result-container">
       <div class="result-section">
         <h3>实时结果</h3>

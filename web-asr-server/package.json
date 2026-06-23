@@ -8,6 +8,8 @@
     "download-model": "node scripts/download-model.js"
   },
   "dependencies": {
+    "busboy": "^1.6.0",
+    "ffmpeg-static": "^5.3.0",
     "sherpa-onnx-node": "^1.13.3",
     "ws": "^8.18.0"
   }

@@ -3,6 +3,11 @@ const SAMPLE_RATE = 16000;
 const els = {
   startButton: document.querySelector('#startButton'),
   stopButton: document.querySelector('#stopButton'),
+  uploadButton: document.querySelector('#uploadButton'),
+  audioFileInput: document.querySelector('#audioFileInput'),
+  selectedFileName: document.querySelector('#selectedFileName'),
+  uploadHint: document.querySelector('#uploadHint'),
+  uploadError: document.querySelector('#uploadError'),
   partialText: document.querySelector('#partialText'),
   finalText: document.querySelector('#finalText'),
   statusDot: document.querySelector('#statusDot'),
@@ -15,6 +20,7 @@ let mediaStream = null;
 let sourceNode = null;
 let processorNode = null;
 let appState = 'idle';
+let isUploading = false;
 
 function setStatus(text, type = '') {
   els.statusText.textContent = text;
@@ -44,6 +50,32 @@ function appendFinal(text) {
   els.finalText.textContent = els.finalText.textContent === '暂无内容'
     ? value
     : `${els.finalText.textContent}\n${value}`;
+}
+
+function resetFinalResult() {
+  els.finalText.classList.add('empty');
+  els.finalText.textContent = '暂无内容';
+}
+
+function setUploadHint(text, type = '') {
+  els.uploadHint.textContent = text;
+  els.uploadHint.className = `upload-hint ${type}`.trim();
+}
+
+function showUploadError(message) {
+  els.uploadError.hidden = false;
+  els.uploadError.textContent = message;
+}
+
+function clearUploadError() {
+  els.uploadError.hidden = true;
+  els.uploadError.textContent = '';
+}
+
+function setUploadBusyState(busy) {
+  isUploading = busy;
+  els.uploadButton.disabled = busy;
+  els.audioFileInput.disabled = busy;
 }
 
 function connectWebSocket() {
@@ -117,6 +149,46 @@ function float32ToInt16(float32Array) {
   return int16Array;
 }
 
+async function uploadAudioFile() {
+  const file = els.audioFileInput.files && els.audioFileInput.files[0];
+  if (!file) {
+    showUploadError('请先选择一个 wav、mp3 或 m4a 文件');
+    return;
+  }
+
+  clearUploadError();
+  setUploadBusyState(true);
+  setUploadHint('正在上传并识别，请稍候...', 'loading');
+  resetFinalResult();
+  els.partialText.textContent = '文件转写中';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/transcribe', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '上传转写失败');
+    }
+
+    appendFinal(result.text || '');
+    els.partialText.textContent = '文件转写完成';
+    setUploadHint(`已完成: ${file.name}`, 'success');
+  } catch (err) {
+    console.error('文件上传转写失败:', err);
+    showUploadError(err.message || '文件上传转写失败');
+    setUploadHint('上传失败，请检查音频格式或稍后重试');
+    els.partialText.textContent = '等待开始';
+  } finally {
+    setUploadBusyState(false);
+  }
+}
+
 async function start() {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     alert('WebSocket 未连接，请稍后重试');
@@ -181,7 +253,26 @@ function stop() {
   setAppState('ready');
 }
 
+els.audioFileInput.addEventListener('change', () => {
+  const file = els.audioFileInput.files && els.audioFileInput.files[0];
+  clearUploadError();
+
+  if (!file) {
+    els.selectedFileName.textContent = '选择音频文件';
+    setUploadHint('未选择文件');
+    return;
+  }
+
+  els.selectedFileName.textContent = file.name;
+  setUploadHint(`已选择: ${file.name}`);
+});
+
 els.startButton.addEventListener('click', start);
 els.stopButton.addEventListener('click', stop);
+els.uploadButton.addEventListener('click', () => {
+  if (!isUploading) {
+    uploadAudioFile();
+  }
+});
 
 connectWebSocket();

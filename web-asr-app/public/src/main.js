@@ -1,5 +1,6 @@
 const SAMPLE_RATE = 16000;
 const RUNTIME_VERSION = '20260616-debug-off';
+const INIT_TIMEOUT_MS = 30000;
 
 const els = {
   initButton: document.querySelector('#initButton'),
@@ -60,11 +61,22 @@ function normalizePath(path) {
 
 async function assertRuntimeFile(base, filename) {
   const url = `${base}/${filename}`;
-  const response = await fetch(url, { method: 'HEAD' });
+  let response;
+
+  try {
+    response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+
+    // Some production gateways block HEAD for static assets.
+    if (response.status === 405 || response.status === 501) {
+      response = await fetch(url, { method: 'GET', cache: 'no-store' });
+    }
+  } catch (error) {
+    throw new Error(`无法访问运行时文件：${url}\n\n${error.message}`);
+  }
 
   if (!response.ok) {
     throw new Error(
-      `缺少浏览器运行时文件：${url}\n\n请把 sherpa-onnx 官方 WebAssembly ASR 构建产物放到 public 目录：\n- sherpa-onnx-asr.js\n- sherpa-onnx-wasm-main-asr.js\n- sherpa-onnx-wasm-main-asr.wasm\n\n然后刷新页面重新初始化。`
+      `缺少或无法访问浏览器运行时文件：${url}\nHTTP 状态码：${response.status}\n\n请确认以下文件都已部署到可直接访问的静态目录：\n- sherpa-onnx-asr.js\n- sherpa-onnx-wasm-main-asr.js\n- sherpa-onnx-wasm-main-asr.wasm\n- sherpa-onnx-wasm-main-asr.data\n\n然后刷新页面重新初始化。`
     );
   }
 }
@@ -82,15 +94,19 @@ async function loadScript(src) {
 
 async function initSherpaModule(wasmPath) {
   const base = normalizePath(wasmPath);
+  let runtimeError = null;
+  let latestRuntimeStatus = '';
 
   await assertRuntimeFile(base, 'sherpa-onnx-asr.js');
   await assertRuntimeFile(base, 'sherpa-onnx-wasm-main-asr.js');
   await assertRuntimeFile(base, 'sherpa-onnx-wasm-main-asr.wasm');
+  await assertRuntimeFile(base, 'sherpa-onnx-wasm-main-asr.data');
 
   if (!globalThis.createOnlineRecognizer) {
     await loadScript(`${base}/sherpa-onnx-asr.js?v=${RUNTIME_VERSION}`);
   }
 
+  moduleInstance = null;
   globalThis.Module = {
     locateFile(path, scriptDirectory = '') {
       if (path.endsWith('.wasm') || path.endsWith('.data')) {
@@ -100,6 +116,7 @@ async function initSherpaModule(wasmPath) {
     },
     setStatus(status) {
       if (appState !== 'loading') return;
+      latestRuntimeStatus = status || '';
 
       if (status === 'Running...') {
         setStatus('正在初始化 WASM 运行时', 'recording');
@@ -113,6 +130,9 @@ async function initSherpaModule(wasmPath) {
 
       setStatus(status || '正在加载 WASM 和模型', 'recording');
     },
+    onAbort(reason) {
+      runtimeError = new Error(`WASM 运行时初始化失败：${reason || '未知错误'}`);
+    },
     onRuntimeInitialized() {
       moduleInstance = globalThis.Module;
     },
@@ -122,12 +142,27 @@ async function initSherpaModule(wasmPath) {
     await loadScript(`${base}/sherpa-onnx-wasm-main-asr.js?v=${RUNTIME_VERSION}`);
   }
 
-  await new Promise((resolve) => {
+  await new Promise((resolve, reject) => {
+    const startTime = Date.now();
     const timer = window.setInterval(() => {
+      if (runtimeError) {
+        window.clearInterval(timer);
+        reject(runtimeError);
+        return;
+      }
+
       if (moduleInstance || globalThis.Module?.calledRun) {
         window.clearInterval(timer);
         moduleInstance = globalThis.Module;
         resolve();
+        return;
+      }
+
+      if (Date.now() - startTime > INIT_TIMEOUT_MS) {
+        window.clearInterval(timer);
+        reject(new Error(
+          `WASM 运行时初始化超时。\n最后状态：${latestRuntimeStatus || '未知'}\n\n请优先检查这个地址能否直接访问：\n${base}/sherpa-onnx-wasm-main-asr.data\n\n如果本地可用、线上卡住，通常是服务器没有正确部署 .data 文件，或被网关/反向代理拦截了。`
+        ));
       }
     }, 50);
   });

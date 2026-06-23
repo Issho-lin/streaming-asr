@@ -7,12 +7,14 @@
 - **服务端识别**：使用 Node.js + sherpa-onnx 在服务端进行语音识别
 - **真流式传输**：浏览器麦克风音频通过 WebSocket 实时传输到服务端
 - **实时反馈**：流式返回识别中间结果和最终结果
+- **文件上传转写**：支持通过 HTTP 上传 `wav`、`mp3`、`m4a` 音频并返回整段文本
 - **中英双语**：支持中文和英文混合识别
 - **端点检测**：自动检测句子结束，分句输出
 
 ## 技术栈
 
 - **后端**：Node.js + WebSocket (ws) + sherpa-onnx-node
+- **音频转码**：ffmpeg-static
 - **前端**：原生 JavaScript + WebSocket API + Web Audio API
 - **模型**：sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20（Transducer 流式模型）
 
@@ -65,6 +67,84 @@ PORT=8080 npm start
 3. 点击"开始识别"按钮
 4. 对着麦克风说话
 5. 实时查看识别结果
+
+## API 接口
+
+### 1. 健康检查
+
+```bash
+curl http://localhost:6006/health
+```
+
+返回示例：
+
+```json
+{
+  "status": "ok",
+  "sampleRate": 16000,
+  "uploadFormats": ["wav", "mp3", "m4a"]
+}
+```
+
+### 2. HTTP 文件上传转写
+
+请求：
+
+```bash
+curl -X POST http://localhost:6006/api/transcribe \
+  -F "file=@/path/to/audio.mp3"
+```
+
+支持格式：
+
+- `wav`
+- `mp3`
+- `m4a`
+
+返回示例：
+
+```json
+{
+  "success": true,
+  "text": "你好，这是识别结果"
+}
+```
+
+失败示例：
+
+```json
+{
+  "success": false,
+  "error": "仅支持 wav/mp3/m4a 文件上传"
+}
+```
+
+说明：
+
+- 上传字段名固定为 `file`
+- 服务端会先把音频统一转成 `16kHz / 单声道 / PCM` 再识别
+- 默认上传大小限制为 `25MB`
+
+### 3. WebSocket 流式识别
+
+连接地址：
+
+```text
+ws://localhost:6006/ws
+```
+
+客户端发送：
+
+- 二进制消息：`Int16LE PCM` 音频帧，`16kHz`、单声道
+- 文本消息：`done`，表示当前音频输入结束
+
+服务端返回：
+
+```json
+{"type":"ready"}
+{"type":"partial","text":"你好"}
+{"type":"final","text":"你好世界"}
+```
 
 ## 目录结构
 
